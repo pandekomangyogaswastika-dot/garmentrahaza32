@@ -173,17 +173,23 @@ frontend:
         agent: "main"
         comment: "Stepper expanded 3→4 steps: Data Order → Preview WO → **Rate Borongan (NEW)** → Konfirmasi. New Step3RateSetup component renders matrix per item (model × size) × process. Pre-fills from payroll profile defaults. 'Salin baris 1 ke semua' button. 'Set borongan sekarang' toggle (default ON). Submit sends process_rates per item to /wizard/start-production. Verified via Playwright screenshot — all 4 steps render correctly, rate matrix shows RAJUT/LINKING/SEWING_S1-S3/STEAM/QC/PACKING columns with auto-filled rates from payroll profiles."
 
-  - task: "MaterialCombobox uses React Portal to avoid Dialog clipping (Issue 2)"
+  - task: "MaterialCombobox uses Radix Popover (FIXED — was custom Portal that had click-intercepted bug)"
     implemented: true
     working: true
     file: "/app/frontend/src/components/erp/ProductionWizardModule.jsx"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Rewrote MaterialCombobox to render menu via createPortal(document.body) with fixed positioning. z-index 9999, repositions on scroll/resize, click-outside closes via document mousedown listener (uses both triggerRef and menuRef), Escape key closes. No longer clipped by Dialog overflow:hidden."
+        comment: "[Initial attempt] Rewrote MaterialCombobox to render menu via createPortal(document.body) with fixed positioning + z-index 9999."
+      - working: false
+        agent: "user"
+        comment: "Bug: 'tidak bisa klik dari dropdown pilih bahan master data ketika di production wizard' — dropdown opens visually but clicks on options were intercepted by Radix Dialog's modal pointer-events handling."
+      - working: true
+        agent: "main"
+        comment: "[Fixed] Replaced custom createPortal+fixed-positioning with **Radix Popover** (`@/components/ui/popover`). Radix Popover's Portal is dialog-aware and properly handles modal pointer events. Verified end-to-end via Playwright: dropdown opens, click on option correctly selects material (e.g. 'Benang Akrilik Premium 2/28' with code YRN-ACR-001), dialog stays open, submitting the wizard creates Order + WO + BOM successfully (toast: '✅ Produksi dimulai! Order ORD-2026-0016 · 1 WO dibuat · 1 BOM terbentuk'). Audited other modules for similar pattern: SearchableSelect (only used in ManualInvoiceModule with no Dialog), LineBoardModule absolute dropdown (no Dialog), all other absolute-positioned elements are Gantt bars/badges. No similar bugs elsewhere."
 
   - task: "Customer Inline Creation in Wizard + Order Modal (Issue 1)"
     implemented: true

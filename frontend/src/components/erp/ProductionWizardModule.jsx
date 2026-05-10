@@ -6,8 +6,7 @@
  *   - Step 2: Preview WO + BOM status + input material TOTAL per WO jika tidak ada BOM
  *   - Step 3: Konfirmasi & Mulai Produksi
  */
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect } from 'react';
 import {
   Wand2, Package, FileText, CheckCircle2, AlertCircle, ChevronRight,
   ChevronLeft, Calendar, User, Boxes, Plus, X, AlertTriangle,
@@ -19,6 +18,7 @@ import {
   DialogTitle, DialogFooter
 } from '@/components/ui/dialog';
 import { GlassCard, GlassInput } from '@/components/ui/glass';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useProductionUI } from '@/contexts/ProductionUIContext';
 import { toast } from 'sonner';
 
@@ -536,53 +536,11 @@ const normalizeNumberInput = (val, opts = { type: 'int' }) => {
   return String(n);
 };
 
-// ── Material Searchable Combobox (Portal-based to avoid Dialog clipping) ──────
+// ── Material Searchable Combobox (Radix Popover — works inside Dialog) ────────
 const MaterialCombobox = ({ value, onChange, materials, placeholder = "Cari / pilih bahan..." }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef(null);
-  const menuRef = useRef(null);
   const selectedMat = materials.find(m => m.id === value);
-
-  // Close on outside click — use document handler so it works across portal
-  useEffect(() => {
-    if (!open) return undefined;
-    const handleClick = (e) => {
-      if (triggerRef.current?.contains(e.target)) return;
-      if (menuRef.current?.contains(e.target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  // Close on Escape + reposition on scroll/resize
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    const onReposition = () => {
-      if (triggerRef.current) {
-        const r = triggerRef.current.getBoundingClientRect();
-        setMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onReposition, true);
-    window.addEventListener('resize', onReposition);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onReposition, true);
-      window.removeEventListener('resize', onReposition);
-    };
-  }, [open]);
-
-  useLayoutEffect(() => {
-    if (open && triggerRef.current) {
-      const r = triggerRef.current.getBoundingClientRect();
-      setMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
-    }
-  }, [open]);
 
   const filtered = query.trim()
     ? materials.filter(m =>
@@ -591,78 +549,69 @@ const MaterialCombobox = ({ value, onChange, materials, placeholder = "Cari / pi
       )
     : materials;
 
-  const menu = open ? (
-    <div
-      ref={menuRef}
-      style={{
-        position: 'fixed',
-        top: menuPos.top,
-        left: menuPos.left,
-        width: Math.max(menuPos.width, 280),
-        zIndex: 9999,
-      }}
-      className="bg-card border border-border rounded-lg shadow-2xl overflow-hidden"
-      data-testid="material-combobox-menu"
-    >
-      <div className="p-1.5 border-b border-border/60">
-        <input
-          autoFocus
-          className="w-full h-7 px-2 text-xs rounded bg-[var(--input-surface)] border border-border/40 outline-none focus:ring-2 focus:ring-primary/50"
-          placeholder="Ketik untuk cari..."
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onClick={e => e.stopPropagation()}
-          data-testid="material-combobox-search"
-        />
-      </div>
-      <div className="max-h-64 overflow-y-auto">
-        {filtered.length === 0 ? (
-          <div className="px-3 py-2 text-xs text-muted-foreground italic">Tidak ada hasil</div>
-        ) : filtered.map(m => (
-          <div
-            key={m.id}
-            onClick={() => { onChange(m); setOpen(false); setQuery(''); }}
-            className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-primary/10 transition-colors ${value === m.id ? 'bg-primary/10' : ''}`}
-            data-testid={`material-option-${m.id}`}
-          >
-            <MatTypeBadge type={m.type} />
-            <span className="text-xs text-foreground flex-1">{m.name}</span>
-            <span className="text-[10px] text-muted-foreground">{m.unit}</span>
-          </div>
-        ))}
-        <div
-          onClick={() => { onChange({ id: '__new__' }); setOpen(false); setQuery(''); }}
-          className="flex items-center gap-2 px-2 py-2 cursor-pointer hover:bg-primary/10 text-primary border-t border-border/40"
-          data-testid="material-combobox-add-new"
-        >
-          <Plus className="w-3 h-3" />
-          <span className="text-xs font-medium">Tambah Bahan Baru ke Master Data...</span>
-        </div>
-      </div>
-    </div>
-  ) : null;
-
   return (
-    <div className="relative">
-      <div
-        ref={triggerRef}
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 h-8 px-2 rounded-lg border border-border bg-[var(--input-surface)] cursor-pointer hover:border-primary/50 transition-colors"
-        data-testid="material-combobox-trigger"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          className="flex items-center gap-2 h-8 px-2 rounded-lg border border-border bg-[var(--input-surface)] cursor-pointer hover:border-primary/50 transition-colors"
+          data-testid="material-combobox-trigger"
+        >
+          {selectedMat ? (
+            <>
+              <MatTypeBadge type={selectedMat.type} />
+              <span className="text-xs text-foreground flex-1 truncate">{selectedMat.name}</span>
+              <span className="text-[10px] text-muted-foreground">{selectedMat.code}</span>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground flex-1">{placeholder}</span>
+          )}
+          <Search className="w-3 h-3 text-muted-foreground shrink-0" />
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        className="p-0 w-[var(--radix-popover-trigger-width)] min-w-[280px]"
+        align="start"
+        sideOffset={4}
+        data-testid="material-combobox-menu"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        {selectedMat ? (
-          <>
-            <MatTypeBadge type={selectedMat.type} />
-            <span className="text-xs text-foreground flex-1 truncate">{selectedMat.name}</span>
-            <span className="text-[10px] text-muted-foreground">{selectedMat.code}</span>
-          </>
-        ) : (
-          <span className="text-xs text-muted-foreground flex-1">{placeholder}</span>
-        )}
-        <Search className="w-3 h-3 text-muted-foreground shrink-0" />
-      </div>
-      {menu && createPortal(menu, document.body)}
-    </div>
+        <div className="p-1.5 border-b border-border/60">
+          <input
+            autoFocus
+            className="w-full h-7 px-2 text-xs rounded bg-[var(--input-surface)] border border-border/40 outline-none focus:ring-2 focus:ring-primary/50"
+            placeholder="Ketik untuk cari..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onClick={e => e.stopPropagation()}
+            data-testid="material-combobox-search"
+          />
+        </div>
+        <div className="max-h-64 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground italic">Tidak ada hasil</div>
+          ) : filtered.map(m => (
+            <div
+              key={m.id}
+              onClick={() => { onChange(m); setOpen(false); setQuery(''); }}
+              className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-primary/10 transition-colors ${value === m.id ? 'bg-primary/10' : ''}`}
+              data-testid={`material-option-${m.id}`}
+            >
+              <MatTypeBadge type={m.type} />
+              <span className="text-xs text-foreground flex-1">{m.name}</span>
+              <span className="text-[10px] text-muted-foreground">{m.unit}</span>
+            </div>
+          ))}
+          <div
+            onClick={() => { onChange({ id: '__new__' }); setOpen(false); setQuery(''); }}
+            className="flex items-center gap-2 px-2 py-2 cursor-pointer hover:bg-primary/10 text-primary border-t border-border/40"
+            data-testid="material-combobox-add-new"
+          >
+            <Plus className="w-3 h-3" />
+            <span className="text-xs font-medium">Tambah Bahan Baru ke Master Data...</span>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 
@@ -1530,7 +1479,10 @@ export default function ProductionWizardModule({ token, isGlobalMount = false })
 
   return (
     <Dialog open={wizardOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-[980px] max-h-[85vh] overflow-hidden flex flex-col" data-testid="production-wizard-dialog">
+      <DialogContent
+        className="max-w-[980px] max-h-[85vh] overflow-hidden flex flex-col"
+        data-testid="production-wizard-dialog"
+      >
         <DialogHeader className="pb-2 border-b border-border/60">
           <DialogTitle className="text-xl font-display flex items-center gap-2">
             <Wand2 className="w-5 h-5 text-primary" />
