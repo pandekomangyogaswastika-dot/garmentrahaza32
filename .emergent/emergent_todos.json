@@ -1,0 +1,58 @@
+[
+  {
+    "content": "Copy repo to /app (preserve .env files)",
+    "status": "completed"
+  },
+  {
+    "content": "Install dependencies (backend pip + frontend yarn)",
+    "status": "completed"
+  },
+  {
+    "content": "Restart services and verify health",
+    "status": "completed"
+  },
+  {
+    "content": "Run reset-and-seed to load demo data",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1 POC: Order completion gate (PACKING validation)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2 Issue 1: Customer Inline Creation - already implemented",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2 Issue 2: Fix dropdown overlap/clipping in Wizard MaterialCombobox (use Portal)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2 Issue 3: Hide Generate WO when wo_count > 0 - already implemented",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2 Issue 4: Move borongan rate setup to Production Wizard",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2 Issue 5: Fix leading zero in Order modal qty + rate cells",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2 Issue 6: Backend completion gate (verified via E2E)",
+    "status": "completed"
+  },
+  {
+    "content": "Bonus: Fix BOM module material dropdown - already done",
+    "status": "completed"
+  },
+  {
+    "content": "Update plan.md with current status",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 2 End-to-End Testing using testing_agent_v3",
+    "status": "pending"
+  }
+]

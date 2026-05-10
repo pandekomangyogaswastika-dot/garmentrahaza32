@@ -96,8 +96,200 @@
 # END - Testing Protocol - DO NOT EDIT OR REMOVE THIS SECTION
 #====================================================================================================
 
+user_problem_statement: |
+  Continue development of PT Rahaza ERP from GitHub repo `garmentrahaza31`.
+  
+  Plan focus: Fix 6 P0 issues per `/app/plan.md`:
+    1. Customer Inline Creation in Wizard + Order modal
+    2. Fix dropdown overlap/clipping in Production Wizard
+    3. Hide Generate WO button when wo_count > 0
+    4. Move borongan rate setup from Order to Production Wizard (Step 3)
+    5. Fix leading zero in number inputs (qty, rate)
+    6. Backend validation: Order can't transition to `completed` before PACKING output
+  
+  Plus bonus: ensure BOM module material dropdown is consistent.
+  
+  Stack: FastAPI + React 19 + MongoDB. Login: admin@garment.com / Admin@123
 
+backend:
+  - task: "Order Completion Gate (Issue 6) — block 'completed' transition without PACKING"
+    implemented: true
+    working: true
+    file: "/app/backend/routes/rahaza_orders.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Already implemented at lines 316-346. Verified via /app/scripts/test_core_poc.py — all 5 user stories PASS: blocks when no WO, blocks when no PACKING event, allows after PACKING qty>0. Verified via /app/scripts/test_e2e_phase2.py."
 
-#====================================================================================================
-# Testing Data - Main Agent and testing sub agent both should log testing data below this section
-#====================================================================================================
+  - task: "Wizard Start-Production accepts process_rates per item (Issue 4)"
+    implemented: true
+    working: true
+    file: "/app/backend/routes/rahaza_wizard.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Modified `wizard_start` to extract per-item process_rates from request body (matched by model_id+size_id key) and persist them to rahaza_work_orders.process_rates. Verified via /app/scripts/test_wizard_rates.py — 4 process_rates correctly persisted on created WO."
+
+  - task: "Customer Inline Create endpoint accepts wizard payload (Issue 1)"
+    implemented: true
+    working: true
+    file: "/app/backend/routes/rahaza_master.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Existing /api/rahaza/customers POST endpoint accepts inline customer payload. Verified via E2E test."
+
+  - task: "Order list returns wo_count for hide-button logic (Issue 3)"
+    implemented: true
+    working: true
+    file: "/app/backend/routes/rahaza_orders.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Existing /api/rahaza/orders endpoint returns wo_count per order via _enrich_orders. Verified via E2E test — newly-created order via wizard has wo_count >= 1."
+
+frontend:
+  - task: "Production Wizard 4-step flow with Rate Borongan (Issue 4)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/erp/ProductionWizardModule.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Stepper expanded 3→4 steps: Data Order → Preview WO → **Rate Borongan (NEW)** → Konfirmasi. New Step3RateSetup component renders matrix per item (model × size) × process. Pre-fills from payroll profile defaults. 'Salin baris 1 ke semua' button. 'Set borongan sekarang' toggle (default ON). Submit sends process_rates per item to /wizard/start-production. Verified via Playwright screenshot — all 4 steps render correctly, rate matrix shows RAJUT/LINKING/SEWING_S1-S3/STEAM/QC/PACKING columns with auto-filled rates from payroll profiles."
+
+  - task: "MaterialCombobox uses React Portal to avoid Dialog clipping (Issue 2)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/erp/ProductionWizardModule.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Rewrote MaterialCombobox to render menu via createPortal(document.body) with fixed positioning. z-index 9999, repositions on scroll/resize, click-outside closes via document mousedown listener (uses both triggerRef and menuRef), Escape key closes. No longer clipped by Dialog overflow:hidden."
+
+  - task: "Customer Inline Creation in Wizard + Order Modal (Issue 1)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/erp/ProductionWizardModule.jsx, RahazaOrdersModule.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Both files have InlineCustomerCreateForm component with __create_new__ option in dropdown. Selecting 'Tambah Customer Baru...' opens inline form with all customer master fields. On save, customer is created and auto-selected."
+
+  - task: "Hide Generate WO button when wo_count > 0 (Issue 3)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/erp/RahazaOrdersModule.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Both row actions (line 494) and detail modal (line 659) check `o.wo_count === 0` / `detailOrder.wo_count === 0` before rendering generate button. Detail modal shows informational message when wo_count > 0."
+
+  - task: "Number input leading zero normalization (Issue 5)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/erp/LusinPcsInput.jsx, ProductionWizardModule.jsx, RahazaOrdersModule.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "LusinPcsInput already had onBlur normalization. Improved wizard qty onBlur to always normalize. Wizard rate cells (Step3) have onBlur normalization. Order modal qty input + rate cells in rateModal added onBlur normalization. Helper normalizeNumberInput(val, {type:'int'/'float'}). Verified rate cells: typed '0500' → became '500' after blur."
+
+  - task: "BOM Module material dropdown (Bonus from audit)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/erp/RahazaBOMModule.jsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Already implemented (audit fix C4 from previous session). BOM editor uses material_id dropdown from rahaza_materials master, with 'Tambah Material Baru' inline form. yarnMaterials/accessoryMaterials filtered from master. Form persists material_id alongside snapshot fields."
+
+metadata:
+  created_by: "main_agent"
+  version: "2.0"
+  test_sequence: 2
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Production Wizard 4-step flow with Rate Borongan (Issue 4)"
+    - "MaterialCombobox uses React Portal to avoid Dialog clipping (Issue 2)"
+    - "Customer Inline Creation in Wizard + Order Modal (Issue 1)"
+    - "Hide Generate WO button when wo_count > 0 (Issue 3)"
+    - "Number input leading zero normalization (Issue 5)"
+    - "Order Completion Gate (Issue 6) — block 'completed' transition without PACKING"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Phase 2 of plan.md complete. All 6 P0 issues implemented + verified via 3 automated test scripts:
+      - /app/scripts/test_core_poc.py (Phase 1 POC for Issue 6): 5/5 PASS
+      - /app/scripts/test_wizard_rates.py (Issue 4 backend): PASS
+      - /app/scripts/test_e2e_phase2.py (Issues 1, 3, 4, 6 E2E): 6/6 PASS
+
+      Login: admin@garment.com / Admin@123 (returns `token` field, not access_token).
+      Database has been reset & seeded fresh (18 employees, 15 orders, 49 WOs, 924 WIP events).
+      Preview URL: https://rahaza-dev.preview.emergentagent.com
+
+      Please test the following in the browser:
+      
+      1. **Login & navigation** — admin@garment.com / Admin@123 → select Portal Produksi
+      
+      2. **Production Wizard (Operasional Harian → Production Wizard)** — verify NEW 4-step flow:
+         - Step 1: Data Order — fill customer (test "✚ Tambah Customer Baru..." inline create), select model+size+qty, test typing '010' → blur → should normalize to '10'
+         - Step 2: Preview WO — verify WO summary appears
+         - Step 3: **Rate Borongan (NEW)** — verify matrix shows model×size rows × process columns (RAJUT, LINKING, SEWING_S1-S3, STEAM, QC, PACKING). Verify rates pre-filled from payroll profile defaults. Test 'Set borongan sekarang' toggle. Test 'Salin baris 1 ke semua' button. Test typing '0500' in rate cell → blur → should normalize to '500'.
+         - Step 4: Konfirmasi — verify shows "Rate borongan akan disimpan untuk N item" message. Test confirm checkbox + submit → success toast → order/WO created with process_rates persisted.
+      
+      3. **Order Modal (Operasional Harian → Order Produksi)** — Test "Order Baru" button:
+         - Test "✚ Tambah Customer Baru..." inline create
+         - Test typing '07' for qty → blur → should normalize to '7'
+         - Save & verify order created
+         - For an existing order with wo_count > 0: verify Generate WO button is HIDDEN in row actions and detail modal shows "WO sudah tersedia" message
+      
+      4. **Order Completion Gate** — From Order list, find order in 'in_production' status:
+         - If no PACKING events for its WOs: try to transition to 'completed' → should get error message
+         - This is verified via API E2E (test_e2e_phase2.py).
+      
+      5. **MaterialCombobox in Wizard Step 2** — When clicking on material picker for an item without BOM, verify the dropdown menu appears OUTSIDE the Dialog boundary (not clipped) and is clickable.
+
+      Skip tests for: drag-and-drop, voice, camera features.
+      Test on these specific user stories from plan.md:
+      - Issue 1: 5 user stories (customer inline create — wizard + order modal)
+      - Issue 2: 5 user stories (dropdown UX — no clipping, scroll, click-outside, z-index)
+      - Issue 3: 5 user stories (hide generate button, list + detail consistency)
+      - Issue 4: 5 user stories (rate setup in wizard, prefilled, copy, persisted)
+      - Issue 5: 5 user stories (leading zero — 01 → 1, blur, no value loss, consistent)
+      - Issue 6: 5 user stories (block before PACKING, allow after, clear errors, UI+API parity)
